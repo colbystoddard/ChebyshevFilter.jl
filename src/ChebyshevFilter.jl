@@ -13,7 +13,7 @@ function generate_c(n, kappa, h)
     xj = (j .+ 1/2) .* pi ./ (n + 1)
 
     function c(k)
-        c = k -> 1/(n+1)*sum(sqrt.(h ./ (1 .+ kappa .- cos.(xj))) .* cos.(k .* xj))
+        return 1/(n+1)*sum(sqrt.(h ./ (1 .+ kappa .- cos.(xj))) .* cos.(k .* xj))
     end
 
     return c
