@@ -32,19 +32,11 @@ eigenvectors of `x` with eigenvalues less than `a` based on Allen-Zhu and Li
 - ket: matrix whose columns are vectors that the projection will be applied to
 """
 function step_function(x, NC, a, delta, ket)
-    N_partitions = Threads.nthreads()
-    l = size(ket, 2)
-    N_per_partition = div(l, N_partitions)
     h = 2/((1 + abs(a))^2 - delta^2)
     kappa = h*delta^2
-    g = zeros(ComplexF64, size(ket))
     y = (1 + kappa)*LinearAlgebra.I - h*(x-a*LinearAlgebra.I)^2
-    Threads.@threads for i in 1:Threads.nthreads()
-        indices = 1 + (i-1)*N_per_partition:1:i*N_per_partition
-        g[:,indices] = kpm_expansion(
-                            y, generate_c(NC, kappa, h), NC, ket[:,indices],
-                            LinearAlgebra.I; kernel = (n, NC) -> 1)
-    end
+    g = threaded_kpm_expansion(y, generate_c(NC, kappa, h), NC, ket,
+                        LinearAlgebra.I; kernel = (n, NC) -> 1)
     return 1/2*(-(x - a*LinearAlgebra.I) * g + LinearAlgebra.I*ket)
 end 
 
@@ -59,7 +51,7 @@ with eigenvalues between `a` and `b`
 - delta: H should not have any eigenvalues within +/- `delta` of `a` or `b`
 - ket: matrix whose columns are vectors that the projection will be applied to
 """
-function indicator(H, NC, a, b, delta, ket)
+function fast_chebyshev_indicator(H, NC, a, b, delta, ket)
     step_b = step_function(H, NC, b, delta, ket)
     step_a = step_function(H, NC, a, delta, ket)
     return step_b .- step_a
@@ -112,6 +104,23 @@ function kpm_expansion(H, alpha, NC, ket, bra;
     return bra*result
 end
 
+"""
+KPM expansion with columns split between threads
+"""
+function threaded_kpm_expansion(H, alpha, NC, ket, bra;
+        kernel=KPM.JacksonKernel)
+    N_partitions = Threads.nthreads()
+    D, l = size(ket)
+    result = zeros(ComplexF64, D, l)
+    N_per_partition = div(l, N_partitions)
+    Threads.@threads for i in 1:Threads.nthreads()
+        indices = 1 + (i-1)*N_per_partition:1:i*N_per_partition
+        result[:,indices] = kpm_expansion(H, alpha, NC, ket[:,indices], LinearAlgebra.I,
+                                     kernel=kernel)
+    end
+    return bra*result
+end
+
 #TODO: check if this is faster/better
 function kpm_expansion_new(H, alpha, NC, ket, bra;
         kernel=KPM.JacksonKernel) 
@@ -144,7 +153,7 @@ standard complex Guassian matrix using multithreading.
 - NC: number of Chebyshev iterations to compute
 """
 function sketch_projection(H::AbstractMatrix{ComplexF64}, a::Float64, 
-        b::Float64, delta::Float64, l::Int, NC::Int)
+        b::Float64, delta::Float64, l::Int, NC::Int; filter=fast_chebyshev_indicator)
     D = size(H)[1]
     #N_partitions = MPI.Comm_size(comm)
     @show N_partitions = Threads.nthreads()
@@ -157,11 +166,11 @@ function sketch_projection(H::AbstractMatrix{ComplexF64}, a::Float64,
     flush(stdout)
     Threads.@threads for i in 1:Threads.nthreads()
         indices = 1 + (i-1)*N_per_partition:1:i*N_per_partition
-        #TODO: if I split step functions between threads I can modify ket in place
         ket[:,indices] = randn(ComplexF64, D, N_per_partition)
+        #P[:,indices] = filter(H, NC, a, b, delta, ket[:,indices])
     end
 
-    @time P = indicator(H, NC, a, b, delta, ket)
+    @time P = filter(H, NC, a, b, delta, ket)
     return P
 end
 
@@ -204,9 +213,10 @@ projection matrix based on Allen-Zhu and Li 2016.
     (the projection matrix P can be calculated as P = Q*adjoint(Q))
 """
 function random_rangefinder(H::AbstractMatrix{ComplexF64}, a::Float64, 
-    b::Float64, delta::Float64, l::Int, NC::Int; tol=1e-5)
+        b::Float64, delta::Float64, l::Int, NC::Int; tol=1e-5, 
+        filter=fast_chebyshev_indicator)
 
-    P = sketch_projection(H, a, b, delta, l, NC)
+    P = sketch_projection(H, a, b, delta, l, NC; filter=filter)
     @show maximum(abs.(P))
 
     Q = get_column_space(P; tol=tol)
