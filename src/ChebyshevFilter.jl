@@ -41,8 +41,10 @@ function step_function(x, NC, a, delta, ket)
 end 
 
 """
-Calculates the projection of `ket` onto subspace spanned by eigenvectors of H
-with eigenvalues between `a` and `b`
+Calculates the approximate projection of `ket` onto subspace spanned by 
+eigenvectors of H with eigenvalues between `a` and `b` based on Allen-Zhu and
+Li 2016.
+
 # Arguments
 - H: matrix to base the projection on
 - NC: number of Chebyshev iterations to calculate
@@ -61,12 +63,22 @@ end
 Calculates coefficients of Chebyshev expansion for indicator function of the
 interval (a, b).
 """
-function alpha(n, a, b)
+function indicator_coefficients(n, a, b)
     if n == 0
         return (acos(a) - acos(b))/pi
     else
         return (sin(n*acos(a)) - sin(n*acos(b)))/(n*pi)
     end
+end
+
+"""
+Calculates the approximate projection of `ket` onto subspace spanned by 
+eigenvectors of H with eigenvalues between `a` and `b` usig a Chebyshev
+expansion of the indicator function.
+"""
+function chebyshev_indicator(H, NC, a, b, delta, ket)
+    return threaded_kpm_expansion(H, n -> indicator_coefficients(n, a, b), NC, 
+                                  ket, LinearAlgebra.I)
 end
 
 """
