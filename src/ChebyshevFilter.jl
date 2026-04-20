@@ -76,7 +76,7 @@ Calculates the approximate projection of `ket` onto subspace spanned by
 eigenvectors of H with eigenvalues between `a` and `b` usig a Chebyshev
 expansion of the indicator function.
 """
-function chebyshev_indicator(H, NC, a, b, delta, ket)
+function chebyshev_indicator(H, NC, a, b, ket)
     return threaded_kpm_expansion(H, n -> indicator_coefficients(n, a, b), NC, 
                                   ket, LinearAlgebra.I)
 end
