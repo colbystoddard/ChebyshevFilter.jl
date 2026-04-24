@@ -81,6 +81,11 @@ function chebyshev_indicator(H, NC, a, b, ket)
                                   ket, LinearAlgebra.I)
 end
 
+#to make combatable with `sketch_projection`
+function chebyshev_indicator(H, NC, a, b, delta, ket)
+    return chebyshev_indicator(H, NC, a, b, ket)
+end
+
 """
 Calculates Chebyshev expansion of <bra| sum(alpha(n) * Tn(H)) |ket>, where
 Tn is the nth Chebyshev polynomial of the 1st kind. See Weisse et al. 2006 for 
