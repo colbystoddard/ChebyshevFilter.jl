@@ -95,10 +95,10 @@ details.
 - alpha: alpha(n) is the nth Chebyshev expansion coefficient
 - NC: Order of Chebyshev expansion
 - ket: Chebyshev expansion is right-multiplied by ket
-- bra: Chebysheve expansion is left-multiplied by bra
+- bra: Chebyshev expansion is left-multiplied by bra
 - kernel: kernel(n, NC) is the nth kernel coefficient for expansion order NC
 """
-function kpm_expansion(H, alpha, NC, ket, bra;
+function kpm_expansion(H, alpha, NC::Int64, ket, bra;
         kernel=KPM.JacksonKernel) 
     g = n -> kernel(n, NC)
     T = LinearAlgebra.I*ket
@@ -119,6 +119,59 @@ function kpm_expansion(H, alpha, NC, ket, bra;
     end
     
     return bra*result
+end
+
+
+"""
+Calculates Chebyshev expansion of sum(alpha(n, E) * Tn(H)) |ket>, where
+Tn is the nth Chebyshev polynomial of the 1st kind. The expansion is
+broadcasted over each value of E, where E[i] is an additional parameter for
+alpha
+# Arguments
+- H: matrix argument of the Chebyshev polynomials
+- E: vector of 
+- alpha: alpha(n, E) is the nth Chebyshev expansion coefficient
+- NC: Order of Chebyshev expansion
+- ket: Chebyshev expansion is right-multiplied by ket
+- bra: Chebysheve expansion is left-multiplied by bra
+- kernel: kernel(n, NC) is the nth kernel coefficient for expansion order NC
+"""
+function kpm_expansion(H, E, alpha, NC::Int64, ket;
+        kernel=KPM.JacksonKernel) 
+    g = n -> kernel(n, NC)
+    T = LinearAlgebra.I*ket
+    T_next = H*ket
+    
+    #moments = zeros(ComplexF64, size(ket)..., size(E, 1))
+    moments = zeros(typeof(ket), size(ket)..., size(E, 1))
+    E = Array(reshape(E, 1, 1, :))
+    #result = g(0)*alpha(0)*T + 2*g(1)*alpha(1)*T_next
+    #moments .+= (g(0)* T) .* alpha.(0, E)
+    #moments .+= (2*g(1)*T_next) .* alpha.(1, E)
+    moments .+= (g(0)* T) .* alpha.(0, E)
+    moments .+= (2*g(1)*T_next) .* alpha.(1, E)
+    temp1 = similar(T)
+    temp2 = similar(T)
+    #alphas = zeros(ComplexF64, 1, 1, size(E,3))
+    alphas = zeros(typeof(ket), 1, 1, size(E,3))
+
+    #a = (n, E) -> alpha(n, E)
+    for n in 2:NC-1
+        #T, T_next = T_next, 2*H*T_next - T
+        #result += 2*g(n)*alpha(n)*T_next
+        temp1 .= T_next
+        LinearAlgebra.mul!(temp2, H, T_next)
+        T_next .= 2 .* temp2 .- T
+        T, temp1 = temp1, T
+        #result .+= 2 .* g(n) .* alpha(n) .* T_next
+        
+        alphas .= alpha.(n, E)
+        #alphas .= a.(n, E)
+        moments .+= (2 .* g(n)  .* T_next) .* alphas
+
+    end
+    
+    return moments
 end
 
 """
