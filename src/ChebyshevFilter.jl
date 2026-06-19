@@ -142,8 +142,7 @@ function broadcasted_kpm_expansion(H, alpha, NC, ket, E;
     T = LinearAlgebra.I*ket
     T_next = H*ket
     
-    #moments = zeros(ComplexF64, size(ket)..., size(E, 1))
-    moments = zeros(typeof(ket[1]), size(ket)..., size(E, 1))
+    moments = zeros(ComplexF64, size(ket)..., size(E, 1))
     E = Array(reshape(E, 1, 1, :))
     #result = g(0)*alpha(0)*T + 2*g(1)*alpha(1)*T_next
     #moments .+= (g(0)* T) .* alpha.(0, E)
@@ -152,8 +151,7 @@ function broadcasted_kpm_expansion(H, alpha, NC, ket, E;
     moments .+= (2*g(1)*T_next) .* alpha.(1, E)
     temp1 = similar(T)
     temp2 = similar(T)
-    #alphas = zeros(ComplexF64, 1, 1, size(E,3))
-    alphas = zeros(typeof(ket[1]), 1, 1, size(E,3))
+    alphas = zeros(ComplexF64, 1, 1, size(E,3))
 
     #a = (n, E) -> alpha(n, E)
     for n in 2:NC-1
