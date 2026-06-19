@@ -1,6 +1,6 @@
 name = "ChebyshevFilter"
 uuid = "34854f97-61eb-4fb3-836d-fbae3bdbd8cd"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["cs1814 "]
 
 [deps]
