@@ -98,7 +98,7 @@ details.
 - bra: Chebyshev expansion is left-multiplied by bra
 - kernel: kernel(n, NC) is the nth kernel coefficient for expansion order NC
 """
-function kpm_expansion(H, alpha, NC::Int64, ket, bra;
+function kpm_expansion(H, alpha, NC, ket, bra;
         kernel=KPM.JacksonKernel) 
     g = n -> kernel(n, NC)
     T = LinearAlgebra.I*ket
@@ -136,7 +136,7 @@ alpha
 - bra: Chebysheve expansion is left-multiplied by bra
 - kernel: kernel(n, NC) is the nth kernel coefficient for expansion order NC
 """
-function kpm_expansion(H, E, alpha, NC::Int64, ket;
+function broadcasted_kpm_expansion(H, alpha, NC, ket, E;
         kernel=KPM.JacksonKernel) 
     g = n -> kernel(n, NC)
     T = LinearAlgebra.I*ket
@@ -189,6 +189,24 @@ function threaded_kpm_expansion(H, alpha, NC, ket, bra;
                                      kernel=kernel)
     end
     return bra*result
+end
+
+
+"""
+broadcasted KPM expansion with columns split between threads
+"""
+function broadcasted_threaded_kpm_expansion(H, alpha, NC, ket, E;
+        kernel=KPM.JacksonKernel)
+    N_partitions = Threads.nthreads()
+    D, l = size(ket)
+    result = zeros(ComplexF64, D, l)
+    N_per_partition = div(l, N_partitions)
+    Threads.@threads for i in 1:Threads.nthreads()
+        indices = 1 + (i-1)*N_per_partition:1:i*N_per_partition
+        result[:,indices,:] = broadcasted_kpm_expansion(H, alpha, NC, 
+                                    ket[:,indices],E, kernel=kernel)
+    end
+    return result
 end
 
 #TODO: check if this is faster/better
