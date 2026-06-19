@@ -197,7 +197,7 @@ function broadcasted_threaded_kpm_expansion(H, alpha, NC, ket, E;
         kernel=KPM.JacksonKernel)
     N_partitions = Threads.nthreads()
     D, l = size(ket)
-    result = zeros(ComplexF64, D, l)
+    result = zeros(ComplexF64, D, l, size(E, 1))
     N_per_partition = div(l, N_partitions)
     Threads.@threads for i in 1:Threads.nthreads()
         indices = 1 + (i-1)*N_per_partition:1:i*N_per_partition
